@@ -7,8 +7,9 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Azure.Core.Serialization;
 using Grpc.Core;
-using Microsoft.Azure.Functions.Worker.Context;
 using Microsoft.Azure.Functions.Worker.Context.Features;
+using Microsoft.Azure.Functions.Worker.Grpc;
+using Microsoft.Azure.Functions.Worker.Grpc.Features;
 using Microsoft.Azure.Functions.Worker.Grpc.Messages;
 using Microsoft.Azure.Functions.Worker.Invocation;
 using Microsoft.Azure.Functions.Worker.OutputBindings;
@@ -150,7 +151,6 @@ namespace Microsoft.Azure.Functions.Worker
             IInvocationFeaturesFactory invocationFeaturesFactory, ObjectSerializer serializer, IOutputBindingsInfoProvider outputBindingsInfoProvider)
         {
             FunctionContext? context = null;
-            FunctionInvocation? invocation = null;
             InvocationResponse response = new()
             {
                 InvocationId = request.InvocationId
@@ -158,10 +158,11 @@ namespace Microsoft.Azure.Functions.Worker
 
             try
             {
-                invocation = new GrpcFunctionInvocation(request);
+                var invocation = new GrpcFunctionInvocation(request);
 
                 IInvocationFeatures invocationFeatures = invocationFeaturesFactory.Create();
                 invocationFeatures.Set<FunctionInvocation>(invocation);
+                invocationFeatures.Set<IExecutionRetryFeature>(invocation);
 
                 context = application.CreateContext(invocationFeatures);
                 invocationFeatures.Set<IFunctionBindingsFeature>(new GrpcFunctionBindingsFeature(context, request, outputBindingsInfoProvider));
