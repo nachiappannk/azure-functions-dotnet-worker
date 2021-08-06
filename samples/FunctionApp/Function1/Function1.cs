@@ -11,7 +11,6 @@ namespace FunctionApp
 {
     public static class Function1
     {
-        //<docsnippet_multiple_outputs>
         [Function("Function1")]
         public static MyOutputType Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequestData req,
@@ -28,17 +27,16 @@ namespace FunctionApp
             return new MyOutputType()
             {
                 Book = bookVal,
-                HttpReponse = response
+                HttpResponse = response
             };
-        }
-        //</docsnippet_multiple_outputs>
+        }        
 
         public class MyOutputType
         {
             [QueueOutput("functionstesting2", Connection = "AzureWebJobsStorage")]
             public Book Book { get; set; }
 
-            public HttpResponseData HttpReponse { get; set; }
+            public HttpResponseData HttpResponse { get; set; }
         }
 
         public class Book
