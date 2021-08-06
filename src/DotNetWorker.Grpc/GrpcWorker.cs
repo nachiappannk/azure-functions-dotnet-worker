@@ -33,9 +33,6 @@ namespace Microsoft.Azure.Functions.Worker
         private readonly IOptions<GrpcWorkerStartupOptions> _startupOptions;
         private readonly ObjectSerializer _serializer;
 
-        private Task? _writerTask;
-        private Task? _readerTask;
-
         public GrpcWorker(IFunctionsApplication application, FunctionRpcClient rpcClient, GrpcHostChannel outputChannel, IInvocationFeaturesFactory invocationFeaturesFactory,
             IOutputBindingsInfoProvider outputBindingsInfoProvider, IMethodInfoLocator methodInfoLocator, IOptions<GrpcWorkerStartupOptions> startupOptions, IOptions<WorkerOptions> workerOptions)
         {
@@ -56,14 +53,14 @@ namespace Microsoft.Azure.Functions.Worker
             _serializer = workerOptions.Value.Serializer ?? throw new InvalidOperationException(nameof(workerOptions.Value.Serializer));
         }
 
-        public Task StartAsync(CancellationToken token)
+        public async Task StartAsync(CancellationToken token)
         {
-            var eventStream = _rpcClient.EventStream();
+            var eventStream = _rpcClient.EventStream(cancellationToken: token);
 
-            _writerTask = StartWriterAsync(eventStream.RequestStream);
-            _readerTask = StartReaderAsync(eventStream.ResponseStream);
+            await SendStartStreamMessageAsync(eventStream.RequestStream);
 
-            return SendStartStreamMessageAsync(eventStream.RequestStream);
+            _ = StartWriterAsync(eventStream.RequestStream);
+            _ = StartReaderAsync(eventStream.ResponseStream);
         }
 
         public Task StopAsync(CancellationToken token)
@@ -71,7 +68,7 @@ namespace Microsoft.Azure.Functions.Worker
             return Task.CompletedTask;
         }
 
-        public async Task SendStartStreamMessageAsync(IClientStreamWriter<StreamingMessage> requestStream)
+        private async Task SendStartStreamMessageAsync(IClientStreamWriter<StreamingMessage> requestStream)
         {
             StartStream str = new StartStream()
             {
@@ -86,7 +83,7 @@ namespace Microsoft.Azure.Functions.Worker
             await requestStream.WriteAsync(startStream);
         }
 
-        public async Task StartWriterAsync(IClientStreamWriter<StreamingMessage> requestStream)
+        private async Task StartWriterAsync(IClientStreamWriter<StreamingMessage> requestStream)
         {
             await foreach (StreamingMessage rpcWriteMsg in _outputReader.ReadAllAsync())
             {
@@ -94,7 +91,7 @@ namespace Microsoft.Azure.Functions.Worker
             }
         }
 
-        public async Task StartReaderAsync(IAsyncStreamReader<StreamingMessage> responseStream)
+        private async Task StartReaderAsync(IAsyncStreamReader<StreamingMessage> responseStream)
         {
             while (await responseStream.MoveNext())
             {
@@ -102,7 +99,7 @@ namespace Microsoft.Azure.Functions.Worker
             }
         }
 
-        public Task ProcessRequestAsync(StreamingMessage request)
+        private Task ProcessRequestAsync(StreamingMessage request)
         {
             // Dispatch and return.
             Task.Run(() => ProcessRequestCoreAsync(request));
@@ -235,6 +232,7 @@ namespace Microsoft.Azure.Functions.Worker
             var response = new FunctionLoadResponse
             {
                 FunctionId = request.FunctionId,
+                Result = StatusResult.Success
             };
 
             if (!request.Metadata.IsProxy)
@@ -243,10 +241,6 @@ namespace Microsoft.Azure.Functions.Worker
                 {
                     FunctionDefinition definition = request.ToFunctionDefinition(methodInfoLocator);
                     application.LoadFunction(definition);
-                    response.Result = new StatusResult
-                    {
-                        Status = StatusResult.Types.Status.Success
-                    };
                 }
                 catch (Exception ex)
                 {

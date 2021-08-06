@@ -1,8 +1,16 @@
-# Azure Functions .NET Isolated
+![Azure Functions Logo](https://raw.githubusercontent.com/Azure/azure-functions-cli/master/src/Azure.Functions.Cli/npm/assets/azure-functions-logo-color-raster.png)
 
-Welcome to .NET Isolated in Azure Functions. .NET Isolated provides .NET 5 support in Azure Functions. It runs in an out-of-process language worker that is separate from the Azure Functions runtime. This allows you to have full control over your application's dependencies as well as other new features like a middleware pipeline.
+|Branch|Status|
+|---|---|
+|main|[![Build Status](https://azfunc.visualstudio.com/Azure%20Functions/_apis/build/status/Azure.azure-functions-dotnet-worker?branchName=main)](https://azfunc.visualstudio.com/Azure%20Functions/_build/latest?definitionId=45&branchName=main)|
+|release/1.x|[![Build Status](https://azfunc.visualstudio.com/Azure%20Functions/_apis/build/status/Azure.azure-functions-dotnet-worker?branchName=release%2F1.x)](https://azfunc.visualstudio.com/Azure%20Functions/_build/latest?definitionId=45&branchName=release%2F1.x)|
 
-A .NET Isolated function app works differently than a .NET Core 3.1 function app. For .NET Isolated, you build an executable that imports the .NET Isolated language worker as a NuGet package. Your app includes a [`Program.cs`](FunctionApp/Program.cs) that starts the worker.
+
+# Azure Functions .NET Worker
+
+Welcome to the Azure Functions .NET Worker Repository. The .NET Worker provides .NET 5 support in Azure Functions, introducing an **Isolated Model**, running as an out-of-process language worker that is separate from the Azure Functions runtime. This allows you to have full control over your application's dependencies as well as other new features like a middleware pipeline.
+
+A .NET Isolated function app works differently than a .NET Core 3.1 function app. For .NET Isolated, you build an executable that imports the .NET Isolated language worker as a NuGet package. Your app includes a [`Program.cs`](samples/FunctionApp/Program.cs) that starts the worker.
 
 ## Binding Model
 
@@ -14,7 +22,7 @@ The Azure Functions .NET Isolated supports middleware registration, following a 
 
 ## Samples
 
-The samples for .NET Isolated using various Azure Functions bindings are available under `samples/SampleApp` ([link](https://github.com/Azure/azure-functions-dotnet-worker/tree/main/samples/SampleApp)).
+You can find samples on how to use different features of the .NET Worker under `samples` ([link](https://github.com/Azure/azure-functions-dotnet-worker/tree/main/samples)).
 
 ## Create and run .NET Isolated functions
 
@@ -24,7 +32,7 @@ The samples for .NET Isolated using various Azure Functions bindings are availab
 Download .NET 5.0 [from here](https://dotnet.microsoft.com/download/dotnet/5.0)
 
 ### Install the Azure Functions Core Tools
-Please make sure you have Azure Functions Core Tools >= `3.0.3331`.
+Please make sure you have Azure Functions Core Tools >= `3.0.3388`.
 
 To download, please check out our docs at [Azure Functions Core Tools](https://github.com/Azure/azure-functions-core-tools)
 
@@ -64,9 +72,21 @@ At this point, your worker process wil be paused, waiting for the debugger to be
 
 Once the debugger is attached, the process execution will resume and you will be able to debug.
 
-**YOU CAN NOT DEBUG DIRECTLY USING "Start Debugging" IN VISUAL STUDIO DIRECTLY.** You need to use the command line as mentioned in the previous **Run the sample locally** part of this readme.
+**YOU CANNOT DEBUG USING "Start Debugging" IN VISUAL STUDIO DIRECTLY.** You need to use the command line as mentioned in the [Run functions locally](#run-functions-locally) part of this readme.
 
 We're working with the Visual Studio team to provide an integrated debugging experience.
+
+#### JetBrains Rider
+
+> NOTE: To debug your Worker, you must be using the Azure Functions Core Tools version 3.0.3381 or higher. You must also have the [Azure Toolkit for Rider](https://plugins.jetbrains.com/plugin/11220-azure-toolkit-for-rider) installed.
+
+In Rider, make sure a Run Configuration is generated for your Azure Functions project is active. You can also create a custom Run Configuration from the **Run \| Edit Configurations...** menu.
+
+To start debugging, select the run configuration and start debugging. This will compile your project, run the Core Tools, and attach the debugger to your project.
+
+Under the hood, Rider launches the Core Tools with the `--dotnet-isolated-debug` argument, and attached to the process ID for your worker process.
+
+You can place a breakpoint in any function, and inspect your code as it is running. Note that [debugging startup code may timeout (#434)](https://github.com/Azure/azure-functions-dotnet-worker/issues/434).
 
 ## Deploying to Azure
 
@@ -87,7 +107,7 @@ We're working with the Visual Studio team to provide an integrated debugging exp
     ```bash
     az group create --name AzureFunctionsQuickstart-rg --location westeurope
     az storage account create --name <STORAGE_NAME> --location westeurope --resource-group AzureFunctionsQuickstart-rg --sku Standard_LRS
-    az functionapp create --resource-group AzureFunctionsQuickstart-rg --consumption-plan-location westeurope --runtime dotnet --functions-version 3 --name <APP_NAME> --storage-account <STORAGE_NAME>
+    az functionapp create --resource-group AzureFunctionsQuickstart-rg --consumption-plan-location westeurope --runtime dotnet-isolated --functions-version 3 --name <APP_NAME> --storage-account <STORAGE_NAME>
     ```
 
 

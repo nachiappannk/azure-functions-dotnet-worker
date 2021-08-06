@@ -1,7 +1,10 @@
 param(    
     [Parameter(Mandatory=$false)]
     [Switch]
-    $SkipEmulators,
+    $SkipStorageEmulator,
+    [Parameter(Mandatory=$false)]
+    [Switch]
+    $SkipCosmosDBEmulator,
     [Parameter(Mandatory=$false)]
     [Switch]
     $SkipCoreTools
@@ -45,7 +48,7 @@ else
     $coreToolsURL = $env:CORE_TOOLS_URL
     if (!$coreToolsURL)
     {        
-        $coreToolsURL = "https://functionsclibuilds.blob.core.windows.net/builds/3/latest/Azure.Functions.Cli.win-x86.zip"
+        $coreToolsURL = "https://functionsclibuilds.blob.core.windows.net/builds/3/latest/Azure.Functions.Cli.min.win-x86.zip"
         Write-Host "Using default url for Core Tools Windows: $coreToolsURL"
         Invoke-RestMethod -Uri 'https://functionsclibuilds.blob.core.windows.net/builds/3/latest/version.txt' -OutFile version.txt
     }
@@ -94,15 +97,15 @@ if (Test-Path $output)
 
 .\tools\devpack.ps1 -E2E -AdditionalPackArgs @("-c","Release") -SkipBuildOnPack
 
-if (!$SkipEmulators)
-{
-  .\tools\start-emulators.ps1
-}
-else 
+if ($SkipStorageEmulator -And $SkipCosmosDBEmulator)
 {
   Write-Host
   Write-Host "---Skipping emulator startup---"
   Write-Host
+}
+else 
+{
+  .\tools\start-emulators.ps1 -SkipStorageEmulator:$SkipStorageEmulator -SkipCosmosDBEmulator:$SkipCosmosDBEmulator
 }
 
 StopOnFailedExecution

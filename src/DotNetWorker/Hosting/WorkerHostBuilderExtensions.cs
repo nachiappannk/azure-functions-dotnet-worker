@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
+using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,8 +19,10 @@ namespace Microsoft.Extensions.Hosting
         /// The following defaults are configured:
         /// <list type="bullet">
         ///     <item><description>A default set of converters.</description></item>
-        ///     <item><description>Set default serializer to ignore casing on property names.</description></item>
+        ///     <item><description>Configures the default <see cref="JsonSerializerOptions"/> to ignore casing on property names.</description></item>
         ///     <item><description>Integration with Azure Functions logging.</description></item>
+        ///     <item><description>Adds environment variables as a configuration source.</description></item>
+        ///     <item><description>Adds command line arguments as a configuration source.</description></item>
         ///     <item><description>Output binding middleware and features.</description></item>
         ///     <item><description>Function execution middleware.</description></item>
         ///     <item><description>Default gRPC support.</description></item>
@@ -38,7 +41,10 @@ namespace Microsoft.Extensions.Hosting
         /// The following defaults are configured:
         /// <list type="bullet">
         ///     <item><description>A default set of converters.</description></item>
+        ///     <item><description>Configures the default <see cref="JsonSerializerOptions"/> to ignore casing on property names.</description></item>
         ///     <item><description>Integration with Azure Functions logging.</description></item>
+        ///     <item><description>Adds environment variables as a configuration source.</description></item>
+        ///     <item><description>Adds command line arguments as a configuration source.</description></item>
         ///     <item><description>Output binding middleware and features.</description></item>
         ///     <item><description>Function execution middleware.</description></item>
         ///     <item><description>Default gRPC support.</description></item>
@@ -58,7 +64,10 @@ namespace Microsoft.Extensions.Hosting
         /// The following defaults are configured:
         /// <list type="bullet">
         ///     <item><description>A default set of converters.</description></item>
+        ///     <item><description>Configures the default <see cref="JsonSerializerOptions"/> to ignore casing on property names.</description></item>
         ///     <item><description>Integration with Azure Functions logging.</description></item>
+        ///     <item><description>Adds environment variables as a configuration source.</description></item>
+        ///     <item><description>Adds command line arguments as a configuration source.</description></item>
         ///     <item><description>Output binding middleware and features.</description></item>
         ///     <item><description>Function execution middleware.</description></item>
         ///     <item><description>Default gRPC support.</description></item>
@@ -78,7 +87,10 @@ namespace Microsoft.Extensions.Hosting
         /// with a delegate to configure a provided <see cref="HostBuilderContext"/> and an <see cref="IFunctionsWorkerApplicationBuilder"/>.
         /// <list type="bullet">
         ///     <item><description>A default set of converters.</description></item>
+        ///     <item><description>Configures the default <see cref="JsonSerializerOptions"/> to ignore casing on property names.</description></item>
         ///     <item><description>Integration with Azure Functions logging.</description></item>
+        ///     <item><description>Adds environment variables as a configuration source.</description></item>
+        ///     <item><description>Adds command line arguments as a configuration source.</description></item>
         ///     <item><description>Output binding middleware and features.</description></item>
         ///     <item><description>Function execution middleware.</description></item>
         ///     <item><description>Default gRPC support.</description></item>
@@ -98,7 +110,10 @@ namespace Microsoft.Extensions.Hosting
         /// and a delegate to configure the <see cref="WorkerOptions"/>.
         /// <list type="bullet">
         ///     <item><description>A default set of converters.</description></item>
+        ///     <item><description>Configures the default <see cref="JsonSerializerOptions"/> to ignore casing on property names.</description></item>
         ///     <item><description>Integration with Azure Functions logging.</description></item>
+        ///     <item><description>Adds environment variables as a configuration source.</description></item>
+        ///     <item><description>Adds command line arguments as a configuration source.</description></item>
         ///     <item><description>Output binding middleware and features.</description></item>
         ///     <item><description>Function execution middleware.</description></item>
         ///     <item><description>Default gRPC support.</description></item>
@@ -111,10 +126,17 @@ namespace Microsoft.Extensions.Hosting
         public static IHostBuilder ConfigureFunctionsWorkerDefaults(this IHostBuilder builder, Action<HostBuilderContext, IFunctionsWorkerApplicationBuilder> configure, Action<WorkerOptions> configureOptions)
         {
             builder
+                .ConfigureHostConfiguration(config =>
+                {
+                    // Add AZURE_FUNCTIONS_ prefixed environment variables
+                    config.AddEnvironmentVariables("AZURE_FUNCTIONS_");
+                })
                 .ConfigureAppConfiguration(configBuilder =>
                 {
                     var cmdLine = Environment.GetCommandLineArgs();
                     RegisterCommandLine(configBuilder, cmdLine);
+
+                    configBuilder.AddEnvironmentVariables();
                 })
                 .ConfigureServices((context, services) =>
                 {
@@ -132,10 +154,24 @@ namespace Microsoft.Extensions.Hosting
 
         internal static void RegisterCommandLine(IConfigurationBuilder builder, string[] cmdLine)
         {
-            if (cmdLine.Length > 0 &&
-                !cmdLine[0].StartsWith("--"))
+            // If either of the first two arguments do not begin with '--', wrap them in
+            // quotes. On Linux, either of these first two arguments can be the path to the
+            // assembly, which begins with a '/' and is interpreted as a switch.
+            for (int i = 0; i <= 1; i++)
             {
-                cmdLine[0] = $"\"{cmdLine[0]}\"";
+                if (cmdLine.Length <= i)
+                {
+                    break;
+                }
+
+                string arg = cmdLine[i];
+
+                if (arg.StartsWith("--"))
+                {
+                    break;
+                }
+
+                cmdLine[i] = $"\"{arg}\"";
             }
 
             builder.AddCommandLine(cmdLine);
